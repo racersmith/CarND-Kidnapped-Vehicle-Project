@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <math.h>
 
 #include "particle_filter.h"
 
@@ -17,6 +18,36 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
+
+	// Number of particles
+	num_particles = 100;
+
+	// Gaussian noise generators
+	std::default_random_engine gen;
+	std::normal_distribution<double> dist_x(x, std[0]);
+	std::normal_distribution<double> dist_y(y, std[1]);
+	std::normal_distribution<double> dist_theta(theta, std[2]);
+
+	// Weight initialize value
+	double init_weight = 1;
+
+	// Generate particles around initial state estimate
+	for (int i; i < num_particles; i++) {
+		Particle temp_particle;
+		temp_particle.id = i;
+		temp_particle.weight = init_weight;
+		temp_particle.x = dist_x(gen);
+		temp_particle.y = dist_y(gen);
+
+		// Sample and normalize heading angle
+		double theta = dist_theta(gen);
+		theta = NormalizeAngle(theta);
+		temp_particle.theta = theta;
+
+		// Push particle and weight into their vectors
+		particles.push_back(temp_particle);
+		weights.push_back(init_weight);
+	}
 
 }
 
@@ -66,4 +97,15 @@ void ParticleFilter::write(std::string filename) {
 		dataFile << particles[i].x << " " << particles[i].y << " " << particles[i].theta << "\n";
 	}
 	dataFile.close();
+}
+
+double ParticleFilter::NormalizeAngle(double angle) {
+	//std::cout << angle << " -> ";
+	// Constrain to less than pi
+	while (angle > M_PI) angle -= 2.0*M_PI;
+
+	// Constrain to greater than -pi
+	while (angle < -M_PI) angle += 2.0*M_PI;
+	//std::cout << angle << std::endl;
+	return angle;
 }
