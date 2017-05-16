@@ -5,6 +5,9 @@
  *      Author: Tiffany Huang
  */
 
+
+#define _USE_MATH_DEFINES
+
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -32,7 +35,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	double init_weight = 1;
 
 	// Generate particles around initial state estimate
-	for (int i; i < num_particles; i++) {
+	for (int i=0; i < num_particles; i++) {
 		Particle temp_particle;
 		temp_particle.id = i;
 		temp_particle.weight = init_weight;
