@@ -60,6 +60,54 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
+	// random sample generator
+	std::default_random_engine gen;
+
+	// apply motion model and noise to each particle
+	for (int i = 0; i < num_particles; i++) {
+		// extract particle state for readability
+		double x = particles[i].x;
+		double y = particles[i].y;
+		double theta = particles[i].theta;
+
+		// define future state parameters
+		double x_f = x;
+		double y_f = y;
+		double theta_f = theta_f;
+
+		if (fabs(theta_f) > 0.0001) {
+			// common calculations
+			double vel_yaw_rate = velocity / yaw_rate;
+
+			// apply motion model
+			theta_f += yaw_rate*delta_t;
+			x_f += vel_yaw_rate*( sin(theta_f) - sin(theta));
+			y_f += vel_yaw_rate*(-cos(theta_f) + cos(theta));
+		}
+		else {
+			// common calculation
+			double v_dt = velocity * delta_t;
+
+			// apply motion model
+			x_f	+= v_dt * cos(theta);
+			y_f += v_dt * sin(theta);
+		}
+
+		// Gaussian noise generators
+		std::normal_distribution<double> dist_x(x_f, std_pos[0]);
+		std::normal_distribution<double> dist_y(y_f, std_pos[1]);
+		std::normal_distribution<double> dist_theta(theta_f, std_pos[2]);
+
+		// Add noise to particle
+		x_f += dist_x(gen);
+		y_f += dist_y(gen);
+		theta_f += dist_theta(gen);
+
+		// Write predicted particle state
+		particles[i].x = x_f;
+		particles[i].y = y_f;
+		particles[i].theta = theta_f;
+	}
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
