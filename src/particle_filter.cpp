@@ -130,10 +130,8 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 			double x_p = predicted[j].x;
 			double y_p = predicted[j].y;
 
-			// calculate range
-			double dx = x_o - x_p;
-			double dy = y_o - y_p;
-			double range = std::sqrt(dx*dx + dy*dy);
+			// calculate range using helper function
+			double range = dist(x_o, y_o, x_p, y_p);
 			
 			// Check for better match or first pass
 			if (range < range_min || range_min < 0) {
@@ -147,8 +145,10 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	}
 }
 
-void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
-		std::vector<LandmarkObs> observations, Map map_landmarks) {
+void ParticleFilter::updateWeights(double sensor_range,
+	double std_landmark[],
+	std::vector<LandmarkObs> observations,
+	Map map_landmarks) {
 	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
 	//   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
@@ -160,6 +160,68 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33. Note that you'll need to switch the minus sign in that equation to a plus to account 
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
+
+	std::vector<LandmarkObs> transformed_observations;
+
+	// Update weight of each particle
+	// ==============================
+	for (int p = 0; p < particles.size(); p++) {
+		double p_x = particles[p].x;
+		double p_y = particles[p].y;
+		double p_theta = particles[p].theta;
+
+		// Transform particles observations to map coordinates
+		// ===================================================
+		for (int i = 0; i < observations.size(); i++) {
+			LandmarkObs temp_observation;
+			double o_x = observations[i].x;
+			double o_y = observations[i].y;
+			
+			// Common calculations
+			double cos_theta = std::cos(p_theta);
+			double sin_theta = std::sin(p_theta);
+
+			// Transform coordinate space. Rotate -> Translate
+			temp_observation.x = o_x*cos_theta + o_y*sin_theta + p_x;
+			temp_observation.y = o_x*sin_theta + o_y*cos_theta + p_y;
+
+			transformed_observations.push_back(temp_observation);
+		}
+		
+		// Find landmarks in map that are within range of particle's position
+		// ==================================================================
+		std::vector<LandmarkObs> landmarks_in_range;
+		for (int i = 0; i < map_landmarks.landmark_list.size(); i++) {
+			double x_f = map_landmarks.landmark_list[i].x_f;
+			double y_f = map_landmarks.landmark_list[i].y_f;
+			double range = dist(p_x, p_y, x_f, y_f);
+
+			// add landmarks in range
+			if (range < sensor_range) {
+				LandmarkObs temp_landmark;
+				temp_landmark.id = map_landmarks.landmark_list[i].id_i;
+				temp_landmark.x = x_f;
+				temp_landmark.y = y_f;
+				landmarks_in_range.push_back(temp_landmark);
+			}
+		}
+
+		// Find observations nearest neighbor landmark
+		dataAssociation(landmarks_in_range, transformed_observations);
+
+		// Calculate weight
+		// ================
+		double weight = 1.0;
+		
+		// Common calculations
+		double c1 = 1 / (2 * M_PI*std_landmark[0] * std_landmark[1]);
+		double std_x22 = 2 * std_landmark[0] * std_landmark[0];
+		double std_y22 = 2 * std_landmark[1] * std_landmark[1];
+		for (int i = 0; i < transformed_observations.size(); i++) {
+			weight *= 
+		}
+
+	}
 }
 
 void ParticleFilter::resample() {
