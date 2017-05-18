@@ -73,7 +73,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		// define future state parameters
 		double x_f = x;
 		double y_f = y;
-		double theta_f = theta_f;
+		double theta_f = theta;
 
 		if (fabs(theta_f) > 0.0001) {
 			// common calculations
@@ -102,6 +102,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		x_f += dist_x(gen);
 		y_f += dist_y(gen);
 		theta_f += dist_theta(gen);
+		theta_f = NormalizeAngle(theta_f);
 
 		// Write predicted particle state
 		particles[i].x = x_f;
@@ -211,16 +212,37 @@ void ParticleFilter::updateWeights(double sensor_range,
 
 		// Calculate weight
 		// ================
-		double weight = 1.0;
+		double temp_weight = 1.0;
 		
 		// Common calculations
 		double c1 = 1 / (2 * M_PI*std_landmark[0] * std_landmark[1]);
 		double std_x22 = 2 * std_landmark[0] * std_landmark[0];
 		double std_y22 = 2 * std_landmark[1] * std_landmark[1];
 		for (int i = 0; i < transformed_observations.size(); i++) {
-			weight *= 
+			int lm = transformed_observations[i].id;
+			double x = transformed_observations[i].x;
+			double y = transformed_observations[i].y;
+
+			// Associated landmark position
+			// !! This is making the assumption that the landmark id !!
+			// !! always corresponds to the landmark index           !!
+			int lm_id = map_landmarks.landmark_list[lm].id_i;
+			double mu_x = map_landmarks.landmark_list[lm].x_f;
+			double mu_y = map_landmarks.landmark_list[lm].y_f;
+
+			if (lm_id != lm) {
+				std::cout << "Landmark id mismatch obs: " << lm << "map: " << lm_id << std::endl;
+			}
+
+			double diff_x2 = (x - mu_x)*(x - mu_x);
+			double diff_y2 = (y - mu_y)*(y - mu_y);
+
+			temp_weight *= c1 * std::exp(diff_x2/std_x22 + diff_y2/std_y22);
 		}
 
+		// update particle weight
+		particles[p].weight = temp_weight;
+		weights[p] = temp_weight;
 	}
 }
 
@@ -228,7 +250,23 @@ void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+	std::vector<Particle> resampled_particles;
+	std::vector<double> resampled_weights;
 
+	// Setup weighted resample generator
+	std::default_random_engine gen;
+	std::discrete_distribution<int> distribution(weights.begin(), weights.end());
+
+	// Resample
+	for (int i = 0; i < num_particles; i++) {
+		int sample_index = distribution(gen);
+		resampled_particles.push_back(particles[sample_index]);
+		resampled_weights.push_back(particles[sample_index].weight);
+	}
+
+	// Update particles and weights
+	particles = resampled_particles;
+	weights = resampled_weights;
 }
 
 void ParticleFilter::write(std::string filename) {
