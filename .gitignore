@@ -10,3 +10,6 @@ particle_filter.cpp
 *.sln
 *.vcxproj
 *.filters
+/Debug/KVP.tlog
+/Debug
+/.ipynb_checkpoints
