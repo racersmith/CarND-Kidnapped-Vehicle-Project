@@ -16,6 +16,7 @@
 
 #include "particle_filter.h"
 
+
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
@@ -25,7 +26,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 //	std::cout << "Initialize" << std::endl;
 
 	// Number of particles
-	num_particles = 50;
+	// Minimum reliable number of particles is about 8 for the test data.
+	num_particles = 25;
 
 	// Gaussian noise generators
 	std::random_device rd;
@@ -58,6 +60,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Initialization Complete
 	is_initialized = true;
 }
+
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
 	// TODO: Add measurements to each particle and add random Gaussian noise.
@@ -118,6 +121,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	}
 }
 
+
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
@@ -155,6 +159,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	}
 }
 
+
 void ParticleFilter::updateWeights(double sensor_range,
 	double std_landmark[],
 	std::vector<LandmarkObs> observations,
@@ -176,6 +181,8 @@ void ParticleFilter::updateWeights(double sensor_range,
 	// minimum allowed weight
 	double weight_min = 0.0000000001;
 
+	// Common calculation for Gaussian
+	double c1 = 1 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
 
 	// Update weight of each particle
 	// ==============================
@@ -228,10 +235,11 @@ void ParticleFilter::updateWeights(double sensor_range,
 		// ================
 		double temp_weight = 1.0;
 		
-		// Common calculations
-		double c1 = 1 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
+		// Common calculations for multivariate Gaussian weight calculation
 		double std_x22 = 2 * std_landmark[0] * std_landmark[0];
 		double std_y22 = 2 * std_landmark[1] * std_landmark[1];
+
+		// Update weight for each observation
 		for (int i = 0; i < transformed_observations.size(); i++) {
 			int lm = transformed_observations[i].id;
 			double x = transformed_observations[i].x;
@@ -244,13 +252,16 @@ void ParticleFilter::updateWeights(double sensor_range,
 			double mu_x = map_landmarks.landmark_list[lm-1].x_f;
 			double mu_y = map_landmarks.landmark_list[lm-1].y_f;
 
+			// Check if there is a landmark id mismatch
 			if (lm_id != lm) {
 				std::cout << "Landmark id mismatch obs: " << lm << "map: " << lm_id << std::endl;
 			}
 
+			// Gaussian sub-calculations for readability
 			double diff_x2 = (x - mu_x)*(x - mu_x);
 			double diff_y2 = (y - mu_y)*(y - mu_y);
 
+			// Update weight using multivariate Gaussian
 			temp_weight *= c1 * std::exp(-(diff_x2/std_x22 + diff_y2/std_y22));
 		}
 
@@ -266,6 +277,7 @@ void ParticleFilter::updateWeights(double sensor_range,
 //		std::cout << "Particle " << p << ": " << weights[p] << std::endl;
 	}
 }
+
 
 void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
@@ -300,6 +312,7 @@ void ParticleFilter::resample() {
 	weights = resampled_weights;
 }
 
+
 void ParticleFilter::write(std::string filename) {
 	// You don't need to modify this file.
 	std::ofstream dataFile;
@@ -309,6 +322,7 @@ void ParticleFilter::write(std::string filename) {
 	}
 	dataFile.close();
 }
+
 
 double ParticleFilter::NormalizeAngle(double angle) {
 	//std::cout << angle << " -> ";
