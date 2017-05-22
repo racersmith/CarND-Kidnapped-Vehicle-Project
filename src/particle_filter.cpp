@@ -22,7 +22,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-	std::cout << "Initialize" << std::endl;
+//	std::cout << "Initialize" << std::endl;
 
 	// Number of particles
 	num_particles = 50;
@@ -53,7 +53,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		// Push particle and weight into their vectors
 		particles.push_back(temp_particle);
 		weights.push_back(init_weight);
-		std::cout << "Particle " << i << ": " << weights[i] << std::endl;
+//		std::cout << "Particle " << i << ": " << weights[i] << std::endl;
 	}
 	// Initialization Complete
 	is_initialized = true;
@@ -65,9 +65,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
-	std::cout << "Prediction" << std::endl;
+//	std::cout << "Prediction" << std::endl;
 
-	// random sample generator
+	// Random sample generator
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	// Gaussian noise generators
@@ -171,7 +171,11 @@ void ParticleFilter::updateWeights(double sensor_range,
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
 
-	std::cout << "Update Weights" << std::endl;
+//	std::cout << "Update Weights" << std::endl;
+
+	// minimum allowed weight
+	double weight_min = 0.0000000001;
+
 
 	// Update weight of each particle
 	// ==============================
@@ -250,10 +254,16 @@ void ParticleFilter::updateWeights(double sensor_range,
 			temp_weight *= c1 * std::exp(-(diff_x2/std_x22 + diff_y2/std_y22));
 		}
 
+		// Check for minium weight
+		// This avoids a all zero resample probability distribution
+		if (temp_weight < weight_min) {
+			temp_weight = weight_min;
+		}
+
 		// update particle weight
 		particles[p].weight = temp_weight;
 		weights[p] = temp_weight;
-		std::cout << "Particle " << p << ": " << weights[p] << std::endl;
+//		std::cout << "Particle " << p << ": " << weights[p] << std::endl;
 	}
 }
 
@@ -262,7 +272,7 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
-	std::cout << "Resample" << std::endl;
+//	std::cout << "Resample" << std::endl;
 
 	std::vector<Particle> resampled_particles;
 	std::vector<double> resampled_weights;
@@ -282,7 +292,7 @@ void ParticleFilter::resample() {
 		int sample_index = resample_dist(gen);
 		resampled_particles.push_back(particles[sample_index]);
 		resampled_weights.push_back(particles[sample_index].weight);
-		std::cout << "Resampled Particle " << sample_index << ": " << particles[sample_index].weight << std::endl;
+//		std::cout << "Resampled Particle " << sample_index << ": " << particles[sample_index].weight << std::endl;
 	}
 
 	// Update particles and weights
