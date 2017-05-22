@@ -22,11 +22,14 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
+	std::cout << "Initialize" << std::endl;
+
 	// Number of particles
-	num_particles = 100;
+	num_particles = 50;
 
 	// Gaussian noise generators
-	std::default_random_engine gen;
+	std::random_device rd;
+	std::mt19937 gen(rd());
 	std::normal_distribution<double> dist_x(x, std[0]);
 	std::normal_distribution<double> dist_y(y, std[1]);
 	std::normal_distribution<double> dist_theta(theta, std[2]);
@@ -50,8 +53,10 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		// Push particle and weight into their vectors
 		particles.push_back(temp_particle);
 		weights.push_back(init_weight);
+		std::cout << "Particle " << i << ": " << weights[i] << std::endl;
 	}
-
+	// Initialization Complete
+	is_initialized = true;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
@@ -60,8 +65,15 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
+	std::cout << "Prediction" << std::endl;
+
 	// random sample generator
-	std::default_random_engine gen;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	// Gaussian noise generators
+	std::normal_distribution<double> dist_x(0, std_pos[0]);
+	std::normal_distribution<double> dist_y(0, std_pos[1]);
+	std::normal_distribution<double> dist_theta(0, std_pos[2]);
 
 	// apply motion model and noise to each particle
 	for (int i = 0; i < num_particles; i++) {
@@ -93,11 +105,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			y_f += v_dt * sin(theta);
 		}
 
-		// Gaussian noise generators
-		std::normal_distribution<double> dist_x(x_f, std_pos[0]);
-		std::normal_distribution<double> dist_y(y_f, std_pos[1]);
-		std::normal_distribution<double> dist_theta(theta_f, std_pos[2]);
-
 		// Add noise to particle
 		x_f += dist_x(gen);
 		y_f += dist_y(gen);
@@ -117,6 +124,8 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 
+	//std::cout << "Data Association" << std::endl;
+
 	// Find nearest landmark to each observation
 	for (int i = 0; i < observations.size(); i++) {
 		// extract for readability
@@ -126,7 +135,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 		// Search for minimum distance
 		double range_min = -1;
 		int nearest_id = -1;
-		for (int j = 0; i < predicted.size(); j++) {
+		for (int j = 0; j < predicted.size(); j++) {
 			// extract for readability
 			double x_p = predicted[j].x;
 			double y_p = predicted[j].y;
@@ -162,17 +171,18 @@ void ParticleFilter::updateWeights(double sensor_range,
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
 
-	std::vector<LandmarkObs> transformed_observations;
+	std::cout << "Update Weights" << std::endl;
 
 	// Update weight of each particle
 	// ==============================
-	for (int p = 0; p < particles.size(); p++) {
+	for (int p = 0; p < num_particles; p++) {
 		double p_x = particles[p].x;
 		double p_y = particles[p].y;
 		double p_theta = particles[p].theta;
 
 		// Transform particles observations to map coordinates
 		// ===================================================
+		std::vector<LandmarkObs> transformed_observations;
 		for (int i = 0; i < observations.size(); i++) {
 			LandmarkObs temp_observation;
 			double o_x = observations[i].x;
@@ -183,7 +193,7 @@ void ParticleFilter::updateWeights(double sensor_range,
 			double sin_theta = std::sin(p_theta);
 
 			// Transform coordinate space. Rotate -> Translate
-			temp_observation.x = o_x*cos_theta + o_y*sin_theta + p_x;
+			temp_observation.x = o_x*cos_theta - o_y*sin_theta + p_x;
 			temp_observation.y = o_x*sin_theta + o_y*cos_theta + p_y;
 
 			transformed_observations.push_back(temp_observation);
@@ -215,7 +225,7 @@ void ParticleFilter::updateWeights(double sensor_range,
 		double temp_weight = 1.0;
 		
 		// Common calculations
-		double c1 = 1 / (2 * M_PI*std_landmark[0] * std_landmark[1]);
+		double c1 = 1 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
 		double std_x22 = 2 * std_landmark[0] * std_landmark[0];
 		double std_y22 = 2 * std_landmark[1] * std_landmark[1];
 		for (int i = 0; i < transformed_observations.size(); i++) {
@@ -226,9 +236,9 @@ void ParticleFilter::updateWeights(double sensor_range,
 			// Associated landmark position
 			// !! This is making the assumption that the landmark id !!
 			// !! always corresponds to the landmark index           !!
-			int lm_id = map_landmarks.landmark_list[lm].id_i;
-			double mu_x = map_landmarks.landmark_list[lm].x_f;
-			double mu_y = map_landmarks.landmark_list[lm].y_f;
+			int lm_id = map_landmarks.landmark_list[lm-1].id_i;
+			double mu_x = map_landmarks.landmark_list[lm-1].x_f;
+			double mu_y = map_landmarks.landmark_list[lm-1].y_f;
 
 			if (lm_id != lm) {
 				std::cout << "Landmark id mismatch obs: " << lm << "map: " << lm_id << std::endl;
@@ -237,12 +247,13 @@ void ParticleFilter::updateWeights(double sensor_range,
 			double diff_x2 = (x - mu_x)*(x - mu_x);
 			double diff_y2 = (y - mu_y)*(y - mu_y);
 
-			temp_weight *= c1 * std::exp(diff_x2/std_x22 + diff_y2/std_y22);
+			temp_weight *= c1 * std::exp(-(diff_x2/std_x22 + diff_y2/std_y22));
 		}
 
 		// update particle weight
 		particles[p].weight = temp_weight;
 		weights[p] = temp_weight;
+		std::cout << "Particle " << p << ": " << weights[p] << std::endl;
 	}
 }
 
@@ -250,18 +261,28 @@ void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+
+	std::cout << "Resample" << std::endl;
+
 	std::vector<Particle> resampled_particles;
 	std::vector<double> resampled_weights;
 
 	// Setup weighted resample generator
-	std::default_random_engine gen;
-	std::discrete_distribution<int> distribution(weights.begin(), weights.end());
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::discrete_distribution<int> resample_dist(weights.begin(), weights.end());
+
+	int dist_min = resample_dist.min(); 
+	int dist_max = resample_dist.max();
+
+	int test = resample_dist(gen);
 
 	// Resample
 	for (int i = 0; i < num_particles; i++) {
-		int sample_index = distribution(gen);
+		int sample_index = resample_dist(gen);
 		resampled_particles.push_back(particles[sample_index]);
 		resampled_weights.push_back(particles[sample_index].weight);
+		std::cout << "Resampled Particle " << sample_index << ": " << particles[sample_index].weight << std::endl;
 	}
 
 	// Update particles and weights
