@@ -4,11 +4,10 @@
  *  Created on: Dec 13, 2016
  *      Author: Tiffany Huang
  */
+#define _USE_MATH_DEFINES
 
 #ifndef HELPER_FUNCTIONS_H_
 #define HELPER_FUNCTIONS_H_
-
-#define _USE_MATH_DEFINES
 
 #include <sstream>
 #include <fstream>
@@ -60,9 +59,9 @@ inline double * getError(double gt_x, double gt_y, double gt_theta, double pf_x,
 	error[0] = fabs(pf_x - gt_x);
 	error[1] = fabs(pf_y - gt_y);
 	error[2] = fabs(pf_theta - gt_theta);
-	error[2] = fmod(error[2], 2.0 * M_PI);
-	if (error[2] > M_PI) {
-		error[2] = 2.0 * M_PI - error[2];
+	error[2] = fmod(error[2], 2.0 * 3.14159265358979323846);
+	if (error[2] > 3.14159265358979323846) {
+		error[2] = 2.0 * 3.14159265358979323846 - error[2];
 	}
 	return error;
 }
